@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "KI-Sort: AI-Driven Vision and Infrared Sorting for Base Material Identification and Impurity Indexing of Labeled Plastic Packaging Waste"
+authors:
+  - family-names: "Hörenz"
+    given-names: "Fio"
+    affiliation: "Hochschule Aalen"
+repository-code: "https://github.com/fiohoerenz/ki-sort-master-thesis"
+license: MIT
+version: "1.0.0"
+date-released: "2026-10-30"
+doi: "<filled in automatically once the first GitHub release is archived by Zenodo>"
+# related-datasets / references block once InSPACK has its own DOI:
+# references:
+#   - type: dataset
+#     title: "InSPACK: Instance-segmented Spectral Packaging"
+#     doi: "<dataset DOI>"
