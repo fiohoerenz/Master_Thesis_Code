@@ -1,25 +1,25 @@
 # ki-sort-master-thesis
 
-Multimodal plastic packaging sorting and recyclability assessment pipeline —
-YOLO-based instance segmentation (body/cap/label), NIR/MIR spectral polymer
-classification, and an EN 18120-grounded impurity index. Developed as part of
-a master's thesis at Hochschule Aalen.
+This repository contains the pipeline code and the trained model weights of
+the master's thesis *KI-Sort: AI-Driven Vision and Infrared Sorting for Base
+Material Identification and Impurity Indexing of Labeled Plastic Packaging
+Waste* (Hochschule Aalen). The pipeline combines YOLO-based instance
+segmentation of packaging components (body, cap, label), FT-NIR
+diffuse-reflectance polymer classification, and an impurity index grounded in
+EN 18120.
 
-The dataset behind this pipeline — **InSPACK (Instance-segmented Spectral
-Packaging)**, a component-level (body/cap/label) multimodal RGB + FT-NIR
-dataset — is published separately: **[InSPACK](<link once that repo exists>)**
-(also archived on Zenodo: `<DOI once minted>`).
+The dataset used by this pipeline, **InSPACK (Instance-segmented Spectral
+Packaging)**, a component-level multimodal RGB and FT-NIR dataset, is
+published separately: `<link to the InSPACK record / its DOI>`.
 
 ## Repository structure
 
 ```
 ki-sort-master-thesis/
 ├── README.md, LICENSE, CITATION.cff
-├── environment/          per-conda-env yml exports (yolo-train, ir-class, ...)
-├── weights/              evaluation-tier and deployment-tier model weights only
-│   └── README.md         quick reference table, see "Model weight tiers" below
-└── code/                 one flat folder — notebooks/scripts are numbered
-                          in execution order
+├── env/                  conda environment exports (see Setup)
+├── weights/              evaluation-tier and deployment-tier model weights
+└── code/                 one flat folder, numbered in execution order
     ├── 0001_Image_Preprocessing.ipynb
     ├── 0101_LS_Export.ipynb
     ├── 0201_Image_Segmentation_Model_Screening.ipynb
@@ -53,68 +53,87 @@ ki-sort-master-thesis/
     └── 0811_Generalizability_Spectral_Waste_HSI_Investigation.ipynb
 ```
 
-Each filename starts with its pipeline stage (`00`–`08`) plus a per-stage
-sequence number giving execution order within that stage (both zero-padded
-to two digits, four digits total) — e.g. `05` = IR classification, and
-`0501`–`0505` run in that order. No per-stage subfolders and no date
-prefixes. `08_Generalizability` code only — external datasets (SpectralWaste,
-WaRP, PackWISE) referenced there are NOT redistributed; you'll need to obtain
-them yourself.
+Each file name starts with its pipeline stage (`00` to `08`), followed by a
+per-stage sequence number that states the execution order within that stage.
+Both parts are zero-padded to two digits, resulting in four digits in total.
+Stage `05`, for example, covers the NIR classification, and the files `0501`
+to `0505` are executed in that order.
 
-## Model weight tiers — do not conflate
+## Model weight tiers
 
-KI-Sort maintains two tiers of trained model per modality (YOLO segmentation,
-IR/NIR logistic-regression classifier). Keeping them straight matters:
-mixing them up silently turns an honest out-of-sample metric into a
-resubstitution one. (The thesis covers the statistical justification for this
-split in full; this is just the practical summary needed to use the weights
-correctly.)
+Two tiers of trained model are maintained per modality, one for the YOLO
+segmentation and one for the NIR classifier. The distinction is to be
+observed, since an evaluation-tier metric and a deployment-tier metric are
+not comparable. The statistical justification of the split is given in the
+thesis. The summary required for using the weights is stated in the
+following.
 
-- **Evaluation tier** — `yolov8n-seg-eval.pt`,
-  `logistic-regression-eveluation.joblib` — fit on the cross-validation pool
-  only (never touches held-out test data). Use this tier for every number
-  that appears in the thesis as a performance metric.
-- **Deployment tier** — `yolov8n-seg-deployment.pt`,
-  `logistic-regression-deployment.joblib` — fit on all available data, to
-  squeeze out the best possible model for actual use. Because it has seen
-  everything, any metric computed by re-running it against its own training
-  data is a resubstitution estimate — it will look better than the model
-  actually is out of sample. Use this tier only for inference, demonstration,
-  or predicted-label export where you specifically want the best available
-  model rather than an honest metric.
+- **Evaluation tier** (`yolov8n-seg-eval.pt`,
+  `logistic-regression-evaluation.joblib`): fit on the cross-validation pool
+  only, without access to the held-out test objects. This tier is to be used
+  for every performance metric reported in the thesis.
+- **Deployment tier** (`yolov8n-seg-deployment.pt`,
+  `logistic-regression-deployment.joblib`): fit on all available data. Any
+  metric obtained by re-applying these models to their own training data
+  constitutes a resubstitution estimate rather than an out-of-sample
+  estimate. This tier is to be used for inference, demonstration, and
+  predicted-label export only.
 
-If you retrain either model, keep this same two-tier structure and naming
-convention so the distinction stays legible to anyone reading the repo later.
-
-See `weights/README.md` for the same information as a quick-reference table.
+The authors recommend retaining the two-tier structure and the naming
+convention if either model is retrained.
 
 ## Setup
 
-Each pipeline stage was run in a specific conda environment (`yolo-train`,
-`ir-class`, and others) — see `environment/*.yml` for exact package versions.
+Each pipeline stage was executed in a dedicated conda environment on the
+training server (Ubuntu 22.04, CUDA 12.1). The folder `env/` holds one export
+per environment, generated employing `conda env export --no-builds`, which
+states the exact package versions:
 
-Notebooks and scripts that read data reference a `KI_SORT_ROOT` environment
-variable (defaulting to the original server path, `/VOL_D/fio.h`) rather than
-a hardcoded path — set it to wherever you've placed the data before running
-anything:
+| File | Environment | Used by |
+|---|---|---|
+| `env/scikit-image.yml` | `scikit-image` | `0001` |
+| `env/ls-export.yml` | `ls-export` | `0101` |
+| `env/yolo-train.yml` | `yolo-train` | `02xx`, `0301`, `06xx`, `0701`, `0806`, `0810` |
+| `env/ir-class.yml` | `ir-class` | `04xx`, `05xx`, `0808`, `0809`, `0811` |
+| `env/sam3-seg.yml` | `sam3-seg` | `0801` to `0803` |
+
+An environment is recreated with:
+```
+conda env create -f env/yolo-train.yml
+```
+The exports represent the state of the environments at the time of export.
+Individual package versions may therefore deviate from those employed for the
+original runs.
+
+Data paths are not hardcoded. Notebooks and scripts that read data resolve
+the environment variable `KI_SORT_ROOT`, which defaults to the original
+server path `/VOL_D/fio.h`. It is to be set to the location of the data
+before execution:
 ```
 export KI_SORT_ROOT=/path/to/your/data
 ```
 
-## External datasets used for generalizability evaluation
+## External datasets used for the generalizability assessment
 
-Stage `08_Generalizability` includes preprocessing and benchmarking *code*
-for SpectralWaste, WaRP, and PackWISE, used to evaluate KI-Sort's models on
-external data. None of that external data (raw or derived) is redistributed
-here — obtain it from its original source if you want to reproduce those
-benchmarks.
+Stage `08` contains preprocessing and benchmarking code for the external
+datasets SpectralWaste, WaRP, and PackWISE, which were employed for the
+assessment of the generalizability of the KI-Sort models. Neither the raw nor
+the derived data of these datasets are redistributed in this repository. They
+are to be obtained from their original sources in order to reproduce the
+corresponding benchmarks.
+
+## Note on AI assistance
+
+The code in this repository was generated with the assistance of
+Claude Sonnet 5 and Claude Opus 5 (Anthropic). The code was reviewed and
+validated by the author.
 
 ## Citation
 
-If you use this code, please cite it — see `CITATION.cff`. If you also use
-the InSPACK dataset, please cite it separately via its own DOI (see the
-InSPACK repo).
+Citation information for this repository is provided in `CITATION.cff`. If
+the InSPACK dataset is used as well, it is to be cited separately through its
+own DOI.
 
 ## License
 
-MIT — see `LICENSE`.
+MIT, see `LICENSE`.
